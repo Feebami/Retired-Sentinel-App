@@ -2,6 +2,7 @@ package com.example.securitycamera
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.util.Log
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.support.common.ops.CastOp
@@ -13,6 +14,8 @@ import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
 import java.io.FileInputStream
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
+import kotlin.math.roundToInt
+import android.graphics.Matrix
 
 data class BoundingBox(
     val x1: Float, val y1: Float, val x2: Float, val y2: Float,
@@ -31,7 +34,7 @@ class PersonDetector(
     private var outputShape = intArrayOf()
 
     // Configuration
-    private val confThreshold = 0.5f
+    private val confThreshold = 0.3f
     private val iouThreshold = 0.5f
 
     init {
@@ -40,7 +43,6 @@ class PersonDetector(
 
     private fun setupInterpreter() {
         val options = Interpreter.Options()
-
         options.setNumThreads(4)
 
         val modelFile = loadModelFile(context.assets, modelName)
@@ -50,62 +52,79 @@ class PersonDetector(
         inputImageWidth = inputShape[1]
         inputImageHeight = inputShape[2]
 
-        // YOLOv8 output is usually [1, 4+classes, 2100] (transposed) or [1, 2100, 4+classes]
-        // We will check this dynamically.
         val outputTensor = interpreter!!.getOutputTensor(0)
-        outputShape = outputTensor.shape()
+        outputShape = outputTensor.shape() // [1, 300, 6]
+
+        Log.d("PersonDetector", "Input: ${inputShape.contentToString()}, Output: ${outputShape.contentToString()}")
     }
 
-    fun detect(bitmap: Bitmap): List<BoundingBox> {
+    fun detect(bitmap: Bitmap, rotationDegrees: Int): List<BoundingBox> {
         if (interpreter == null) return emptyList()
+
+        val rotatedBitmap = if (rotationDegrees != 0) {
+            val matrix = Matrix()
+            matrix.postRotate(rotationDegrees.toFloat())
+            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        } else {
+            bitmap
+        }
 
         // 1. Preprocess Image
         val imageProcessor = ImageProcessor.Builder()
             .add(ResizeOp(inputImageHeight, inputImageWidth, ResizeOp.ResizeMethod.BILINEAR))
-            .add(NormalizeOp(0f, 255f)) // Normalize to [0,1]
+            .add(NormalizeOp(0f, 255f))
             .add(CastOp(DataType.FLOAT32))
             .build()
 
         var tensorImage = TensorImage(DataType.FLOAT32)
-        tensorImage.load(bitmap)
+        tensorImage.load(rotatedBitmap)
         tensorImage = imageProcessor.process(tensorImage)
 
         // 2. Run Inference
-        // Output buffer: [1, 5, 2100] for 1 class (x, y, w, h, conf)
-        // Adjust '5' depending on your class count (4 box + N classes)
-        // If shape is [1, 5, 2100], we need to create buffer based on outputShape
         val outputBuffer = TensorBuffer.createFixedSize(outputShape, DataType.FLOAT32)
         interpreter!!.run(tensorImage.buffer, outputBuffer.buffer.rewind())
 
-        // 3. Post-process (The hard part)
+        // 3. Post-process
         val outputArray = outputBuffer.floatArray
-        // Reshape to access easily: standard YOLOv8 export is [Batch, Channels, Anchors] -> [1, 5, 2100]
-        val channels = outputShape[1] // 5 (x,y,w,h,conf)
-        val anchors = outputShape[2]  // 2100
+        val numDetections = outputShape[1] // 300
+        val numValues = outputShape[2]      // 6
 
         val boxes = mutableListOf<BoundingBox>()
 
-        for (i in 0 until anchors) {
-            // In the flattened array, accessing [0, channel_j, anchor_i]
-            // Stride is anchors. index = c * anchors + i
+        // CORRECTION: Scale to ORIGINAL bitmap size, not model size
+        val originalWidth = rotatedBitmap.width.toFloat()
+        val originalHeight = rotatedBitmap.height.toFloat()
 
-            // Confidence (Assuming class 0 is Person and it's at index 4)
-            // Format: x, y, w, h, class0_conf, class1_conf...
-            val confidence = outputArray[4 * anchors + i]
+        for (i in 0 until numDetections) {
+            val baseIndex = i * numValues
 
-            if (confidence > confThreshold) {
-                val cx = outputArray[0 * anchors + i]
-                val cy = outputArray[1 * anchors + i]
-                val w = outputArray[2 * anchors + i]
-                val h = outputArray[3 * anchors + i]
+            // Extract values [x1, y1, x2, y2, conf, class]
+            val x1Norm = outputArray[baseIndex]
+            val y1Norm = outputArray[baseIndex + 1]
+            val x2Norm = outputArray[baseIndex + 2]
+            val y2Norm = outputArray[baseIndex + 3]
+            val confidence = outputArray[baseIndex + 4]
+            val classId = outputArray[baseIndex + 5].roundToInt()
 
-                val x1 = cx - w / 2
-                val y1 = cy - h / 2
-                val x2 = cx + w / 2
-                val y2 = cy + h / 2
+            if (classId != 0) continue
+            if (confidence <= confThreshold) continue
 
-                boxes.add(BoundingBox(x1, y1, x2, y2, cx, cy, w, h, confidence, 0))
-            }
+            // Scale normalized coordinates (0..1) to full image size (e.g. 640x480)
+            val x1 = x1Norm * originalWidth
+            val y1 = y1Norm * originalHeight
+            val x2 = x2Norm * originalWidth
+            val y2 = y2Norm * originalHeight
+
+            val cx = (x1 + x2) / 2
+            val cy = (y1 + y2) / 2
+            val w = x2 - x1
+            val h = y2 - y1
+
+            boxes.add(BoundingBox(x1, y1, x2, y2, cx, cy, w, h, confidence, classId))
+        }
+
+        if (rotatedBitmap != bitmap) {
+            rotatedBitmap.recycle()
         }
 
         return applyNMS(boxes)
@@ -151,5 +170,10 @@ class PersonDetector(
         val startOffset = fileDescriptor.startOffset
         val declaredLength = fileDescriptor.declaredLength
         return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
+    }
+
+    fun close() {
+        interpreter?.close()
+        interpreter = null
     }
 }

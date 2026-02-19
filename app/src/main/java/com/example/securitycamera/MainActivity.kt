@@ -15,6 +15,7 @@ import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import com.example.securitycamera.databinding.ActivityMainBinding
 import java.util.concurrent.ExecutorService
@@ -37,9 +38,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Set PreviewView to FIT_CENTER to show full image
+        binding.viewFinder.scaleType = PreviewView.ScaleType.FIT_CENTER
 
         cameraExecutor = Executors.newSingleThreadExecutor()
         detector = PersonDetector(this)
@@ -60,11 +63,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-
         cameraProviderFuture.addListener({
             val cameraProvider = cameraProviderFuture.get()
 
-            // Configure ResolutionSelector for 4:3 aspect ratio and highest available resolution
             val resolutionSelector = ResolutionSelector.Builder()
                 .setAspectRatioStrategy(
                     AspectRatioStrategy(
@@ -89,12 +90,20 @@ class MainActivity : AppCompatActivity() {
                 .also {
                     it.setAnalyzer(cameraExecutor) { imageProxy ->
                         val bitmap = imageProxy.toBitmap()
-                        val boxes = detector.detect(bitmap)
+                        val rotation = imageProxy.imageInfo.rotationDegrees
+                        val boxes = detector.detect(bitmap, rotation)
 
                         runOnUiThread {
-                            binding.overlayView.setBoxes(boxes)
-                        }
+                            val isRotated = rotation != 0
+                            val width = if (isRotated) bitmap.height else bitmap.width
+                            val height = if (isRotated) bitmap.width else bitmap.height
 
+                            binding.overlayView.setBoxes(
+                                boxes,
+                                width,
+                                height
+                            )
+                        }
                         imageProxy.close()
                     }
                 }
@@ -118,5 +127,6 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
+        detector.close()
     }
 }
