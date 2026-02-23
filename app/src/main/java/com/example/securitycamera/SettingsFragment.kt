@@ -51,12 +51,24 @@ class SettingsFragment : Fragment() {
 
             // Populate EditText with comma-separated list
             binding.editSafeIdentities.setText(AppSettings.safeIdentities.joinToString(", "))
+
+            binding.switchTelegramAlerts.isChecked = AppSettings.telegramEnabled
+            binding.layoutTelegramConfig.visibility = if (AppSettings.telegramEnabled) View.VISIBLE else View.GONE
+            binding.editTelegramToken.setText(AppSettings.telegramToken)
+            binding.editTelegramChatId.setText(AppSettings.telegramChatId)
         } catch (e: Exception) {
             // Fallback
             binding.sliderConfidence.value = AppSettings.DEFAULT_CONF_THRESHOLD
             binding.sliderThreshold.value = AppSettings.DEFAULT_RECOG_THRESHOLD
             binding.sliderIncidentTimeout.value = AppSettings.DEFAULT_INCIDENT_TIMEOUT.toFloat()
             binding.sliderGracePeriod.value = AppSettings.DEFAULT_GRACE_PERIOD.toFloat()
+
+            binding.editSafeIdentities.setText("")
+
+            binding.switchTelegramAlerts.isChecked = false
+            binding.layoutTelegramConfig.visibility = View.GONE
+            binding.editTelegramToken.setText("")
+            binding.editTelegramChatId.setText("")
         }
 
         validateTimings()
@@ -114,6 +126,26 @@ class SettingsFragment : Fragment() {
                 // Save the entered names (you might only want to save the valid ones,
                 // but saving all of them allows the user to enroll them later without retyping)
                 AppSettings.saveSafeIdentities(requireContext(), enteredNames)
+            }
+        })
+
+        // 4. Setup Telegram Alerts toggle and config
+        binding.switchTelegramAlerts.setOnCheckedChangeListener { _, isChecked ->
+            AppSettings.saveTelegramEnabled(requireContext(), isChecked)
+            binding.layoutTelegramConfig.visibility = if (isChecked) View.VISIBLE else View.GONE
+        }
+        binding.editTelegramToken.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                AppSettings.saveTelegramToken(requireContext(), s?.toString() ?: "")
+            }
+        })
+        binding.editTelegramChatId.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                AppSettings.saveTelegramChatId(requireContext(), s?.toString()?.trim() ?: "")
             }
         })
     }

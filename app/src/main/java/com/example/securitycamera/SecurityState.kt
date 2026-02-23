@@ -18,6 +18,7 @@ class SecurityState(
     private var incidentStartTime = 0L
     private var lastSightTime = 0L
     private var safeIdentitySeen = false
+    private var alertedThisIncident = false
 
     // Tracks how many times each identity has been seen during the current incident
     private val identityCounts = mutableMapOf<String, Int>()
@@ -84,10 +85,12 @@ class SecurityState(
         // 4. Intruder Alert Logic
         // We are past the grace period. If no safe identity has reached the threshold, it's an intruder.
         if (!safeIdentitySeen && incidentStartTime > 0L) {
-            Log.w(TAG, "!!! Intruder Alert: No safe identity confirmed within grace period !!!")
-            return true
+            if (!alertedThisIncident) {
+                Log.w(TAG, "!!! Intruder Alert: No safe identity confirmed within grace period !!!")
+                alertedThisIncident = true
+                return true
+            }
         }
-
         return false
     }
 }

@@ -161,17 +161,49 @@
             android:paddingBottom="8dp" />
 
         <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/switchUnknownAlert"
+            android:id="@+id/switchTelegramAlerts"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Alert on unknown person" />
+            android:text="Send Telegram alerts" />
 
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/switchKnownAlert"
+        <!-- Hidden by default, shown when switch is ON -->
+        <LinearLayout
+            android:id="@+id/layoutTelegramConfig"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:orientation="vertical"
             android:layout_marginTop="8dp"
-            android:text="Alert on known person detected" />
+            android:visibility="gone">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Telegram Bot Token">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/editTelegramToken"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textVisiblePassword" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Telegram Chat ID">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/editTelegramChatId"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textVisiblePassword" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+        </LinearLayout>
 
     </LinearLayout>
 </ScrollView>
+

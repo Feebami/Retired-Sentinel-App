@@ -12,6 +12,9 @@ object AppSettings {
     private const val KEY_GRACE_PERIOD = "grace_period"
     private const val KEY_SAFE_THRESHOLD = "safe_threshold"
     private const val KEY_SAFE_IDENTITIES = "safe_identities"
+    private const val KEY_TELEGRAM_ENABLED = "telegram_enabled"
+    private const val KEY_TELEGRAM_TOKEN = "telegram_token"
+    private const val KEY_TELEGRAM_CHAT_ID = "telegram_chat_id"
 
     const val DEFAULT_CONF_THRESHOLD = 0.3f
     const val DEFAULT_RECOG_THRESHOLD = 0.6f
@@ -35,6 +38,12 @@ object AppSettings {
         private set
     var safeIdentities: Set<String> = emptySet()
         private set
+    var telegramEnabled: Boolean = false
+        private set
+    var telegramToken: String = ""
+        private set
+    var telegramChatId: String = ""
+        private set
 
     fun load(context: Context) {
         val p = prefs(context)
@@ -51,6 +60,11 @@ object AppSettings {
             gracePeriodSec = p.getLong(KEY_GRACE_PERIOD, DEFAULT_GRACE_PERIOD)
             safeThresholdFrames = p.getInt(KEY_SAFE_THRESHOLD, DEFAULT_SAFE_THRESHOLD)
             safeIdentities = p.getStringSet(KEY_SAFE_IDENTITIES, emptySet()) ?: emptySet()
+
+            // Load Telegram Settings
+            telegramEnabled = p.getBoolean(KEY_TELEGRAM_ENABLED, false)
+            telegramToken = p.getString(KEY_TELEGRAM_TOKEN, "") ?: ""
+            telegramChatId = p.getString(KEY_TELEGRAM_CHAT_ID, "") ?: ""
 
         } catch (e: Exception) {
             confThreshold = DEFAULT_CONF_THRESHOLD
@@ -91,6 +105,21 @@ object AppSettings {
     fun saveSafeIdentities(context: Context, identities: Set<String>) {
         safeIdentities = identities
         prefs(context).edit().putStringSet(KEY_SAFE_IDENTITIES, identities).apply()
+    }
+
+    fun saveTelegramEnabled(context: Context, enabled: Boolean) {
+        telegramEnabled = enabled
+        prefs(context).edit().putBoolean(KEY_TELEGRAM_ENABLED, enabled).apply()
+    }
+
+    fun saveTelegramToken(context: Context, token: String) {
+        telegramToken = token
+        prefs(context).edit().putString(KEY_TELEGRAM_TOKEN, token).apply()
+    }
+
+    fun saveTelegramChatId(context: Context, chatId: String) {
+        telegramChatId = chatId
+        prefs(context).edit().putString(KEY_TELEGRAM_CHAT_ID, chatId).apply()
     }
 
     private fun prefs(context: Context) =

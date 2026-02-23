@@ -57,6 +57,9 @@ dependencies {
     implementation(libs.jcodec)
     implementation(libs.jcodec.android)
 
+    // OkHttp for Telegram
+    implementation(libs.okhttp)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
