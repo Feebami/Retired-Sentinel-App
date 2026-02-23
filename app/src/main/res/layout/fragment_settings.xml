@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- DETECTION SETTINGS -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Detection"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:paddingBottom="8dp" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderConfidence"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:value="0.3"
+            android:valueFrom="0.1"
+            android:valueTo="0.9"
+            android:stepSize="0.05" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Person detection confidence threshold"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:background="?attr/colorOutlineVariant" />
+
+        <!-- RECOGNITION SETTINGS -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Recognition"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:paddingBottom="8dp" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderThreshold"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:value="0.6"
+            android:valueFrom="0.1"
+            android:valueTo="0.9"
+            android:stepSize="0.05" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Identity match threshold (cosine similarity)"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:background="?attr/colorOutlineVariant" />
+
+        <!-- SECURITY RULES SETTINGS -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Security Rules"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:paddingBottom="8dp" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Safe Identities (comma separated)">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/editSafeIdentities"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textCapWords|textNoSuggestions" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
+            android:id="@+id/textSafeIdentitiesError"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="?attr/colorError"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:visibility="gone" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Incident timeout (seconds room must be empty)"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderIncidentTimeout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:value="15.0"
+            android:valueFrom="5.0"
+            android:valueTo="60.0"
+            android:stepSize="5.0" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Grace period (seconds before alert triggers)"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/sliderGracePeriod"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:value="9.0"
+            android:valueFrom="3.0"
+            android:valueTo="30.0"
+            android:stepSize="3.0" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:background="?attr/colorOutlineVariant" />
+
+        <TextView
+            android:id="@+id/textTimingError"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="?attr/colorError"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:visibility="gone"
+            android:text="Warning: Incident timeout must be longer than grace period."/>
+
+        <!-- NOTIFICATIONS SETTINGS -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Notifications"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:paddingBottom="8dp" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchUnknownAlert"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Alert on unknown person" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/switchKnownAlert"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Alert on known person detected" />
+
+    </LinearLayout>
+</ScrollView>

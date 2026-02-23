@@ -15,13 +15,6 @@ import java.io.FileInputStream
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 import kotlin.math.roundToInt
-import android.graphics.Matrix
-
-data class BoundingBox(
-    val x1: Float, val y1: Float, val x2: Float, val y2: Float,
-    val cx: Float, val cy: Float, val w: Float, val h: Float,
-    val confidence: Float, val classId: Int
-)
 
 class PersonDetector(
     private val context: Context,
@@ -34,7 +27,7 @@ class PersonDetector(
     private var outputShape = intArrayOf()
 
     // Configuration
-    private val confThreshold = 0.3f
+    var confThreshold = AppSettings.DEFAULT_CONF_THRESHOLD
     private val iouThreshold = 0.5f
 
     init {
@@ -58,16 +51,8 @@ class PersonDetector(
         Log.d("PersonDetector", "Input: ${inputShape.contentToString()}, Output: ${outputShape.contentToString()}")
     }
 
-    fun detect(bitmap: Bitmap, rotationDegrees: Int): List<BoundingBox> {
+    fun detect(bitmap: Bitmap): List<BoundingBox> {
         if (interpreter == null) return emptyList()
-
-        val rotatedBitmap = if (rotationDegrees != 0) {
-            val matrix = Matrix()
-            matrix.postRotate(rotationDegrees.toFloat())
-            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-        } else {
-            bitmap
-        }
 
         // 1. Preprocess Image
         val imageProcessor = ImageProcessor.Builder()
@@ -77,7 +62,7 @@ class PersonDetector(
             .build()
 
         var tensorImage = TensorImage(DataType.FLOAT32)
-        tensorImage.load(rotatedBitmap)
+        tensorImage.load(bitmap)
         tensorImage = imageProcessor.process(tensorImage)
 
         // 2. Run Inference
@@ -92,8 +77,8 @@ class PersonDetector(
         val boxes = mutableListOf<BoundingBox>()
 
         // CORRECTION: Scale to ORIGINAL bitmap size, not model size
-        val originalWidth = rotatedBitmap.width.toFloat()
-        val originalHeight = rotatedBitmap.height.toFloat()
+        val originalWidth = bitmap.width.toFloat()
+        val originalHeight = bitmap.height.toFloat()
 
         for (i in 0 until numDetections) {
             val baseIndex = i * numValues
@@ -120,11 +105,7 @@ class PersonDetector(
             val w = x2 - x1
             val h = y2 - y1
 
-            boxes.add(BoundingBox(x1, y1, x2, y2, cx, cy, w, h, confidence, classId))
-        }
-
-        if (rotatedBitmap != bitmap) {
-            rotatedBitmap.recycle()
+            boxes.add(BoundingBox(x1, y1, x2, y2, cx, cy, w, h, confidence, "Person"))
         }
 
         return applyNMS(boxes)

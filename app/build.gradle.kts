@@ -4,12 +4,12 @@ plugins {
 
 android {
     namespace = "com.example.securitycamera"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.securitycamera"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -49,6 +49,13 @@ dependencies {
     // LiteRT (Correct for Feb 2026 / AI Edge)
     implementation(libs.litert)
     implementation(libs.litert.support)
+
+    // ML Kit
+    implementation(libs.mlkit.face.detection)
+
+    // JCodec
+    implementation(libs.jcodec)
+    implementation(libs.jcodec.android)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
