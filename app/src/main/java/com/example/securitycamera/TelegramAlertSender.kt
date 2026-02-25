@@ -53,7 +53,7 @@ class TelegramAlertSender {
                 if (response.isSuccessful) {
                     Log.i("TelegramSender", "Successfully sent video to Telegram!")
                 } else {
-                    Log.e("TelegramSender", "Telegram API Error: ${response.code} - ${response.body?.string()}")
+                    Log.e("TelegramSender", "Telegram API Error: ${response.code} - ${response.body.string()}")
                 }
                 response.close()
             }

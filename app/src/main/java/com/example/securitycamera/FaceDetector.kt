@@ -13,7 +13,7 @@ class FaceDetector {
 
     init {
         val options = FaceDetectorOptions.Builder()
-            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
             .setMinFaceSize(0.1f)
             .build()
         detector = FaceDetection.getClient(options)
@@ -23,7 +23,7 @@ class FaceDetector {
      * Detects faces within the person-cropped region of the full rotatedBitmap.
      * Returns BoundingBoxes in full-image coordinate space, labeled "Face".
      */
-    fun detect(bitmap: Bitmap, personBox: BoundingBox): List<BoundingBox> {
+    fun detect(bitmap: Bitmap, personBox: BoundingBox): BoundingBox? {
         val (croppedBitmap, offset) = cropPersonSquare(bitmap, personBox)
         val offsetX = offset[0]
         val offsetY = offset[1]
@@ -32,25 +32,19 @@ class FaceDetector {
         // Tasks.await() is safe here because we're always called from a background thread
         val faces = Tasks.await(detector.process(inputImage))
 
-        val faceBoxes = faces.map { face ->
-            val rect = face.boundingBox
-            val fx1 = (rect.left  + offsetX).toFloat()
-            val fy1 = (rect.top   + offsetY).toFloat()
-            val fx2 = (rect.right + offsetX).toFloat()
-            val fy2 = (rect.bottom + offsetY).toFloat()
-            val fw  = fx2 - fx1
-            val fh  = fy2 - fy1
-            BoundingBox(
-                x1 = fx1, y1 = fy1, x2 = fx2, y2 = fy2,
-                cx = fx1 + fw / 2f, cy = fy1 + fh / 2f,
-                w  = fw, h  = fh,
-                confidence = 1.0f,
-                label = "Face"
-            )
-        }
-
+        val largestFace = faces.maxByOrNull { it.boundingBox.width() * it.boundingBox.height() }
+        if (largestFace == null) return null
+        val rect = largestFace.boundingBox
+        val x1 = (rect.left + offsetX).toFloat()
+        val y1 = (rect.top + offsetY).toFloat()
+        val x2 = (rect.right + offsetX).toFloat()
+        val y2 = (rect.bottom + offsetY).toFloat()
+        val w = x2 - x1
+        val h = y2 - y1
+        val cx = (x1 + x2) / 2
+        val cy = (y1 + y2) / 2
         if (croppedBitmap != bitmap) croppedBitmap.recycle()
-        return faceBoxes
+        return BoundingBox(x1, y1, x2, y2, cx, cy, w, h, null, "Face")
     }
 
     /**

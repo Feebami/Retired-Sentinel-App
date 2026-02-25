@@ -1,5 +1,6 @@
 package com.example.securitycamera
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -45,12 +46,33 @@ class OverlayView @JvmOverloads constructor(
         setShadowLayer(4f, 2f, 2f, Color.BLACK)
     }
 
+    private val thermTextPaint = Paint().apply {
+        color = Color.GREEN
+        textSize = 60f
+        style = Paint.Style.FILL
+        setShadowLayer(4f, 2f, 2f, Color.BLACK)
+    }
+
+    private val logTextPaint = Paint().apply {
+        color = Color.WHITE
+        textSize = 40f
+        style = Paint.Style.FILL
+        setShadowLayer(4f, 2f, 2f, Color.BLACK)
+    }
+
     private var boxes: List<BoundingBox> = emptyList()
     private var imageWidth = 0
     private var imageHeight = 0
+    private var logList: List<String> = emptyList()
     private var currentFps = 0.0
+    private var thermalHeadroom: Float? = null
 
-    fun setBoxes(newBoxes: List<BoundingBox>, imgWidth: Int, imgHeight: Int, fps: Double = 0.0) {
+    fun setThermalHeadroom(value: Float?) {
+        thermalHeadroom = value
+        invalidate()
+    }
+
+    fun setOverlay(newBoxes: List<BoundingBox>, imgWidth: Int, imgHeight: Int, fps: Double = 0.0) {
         boxes = newBoxes
         imageWidth = imgWidth
         imageHeight = imgHeight
@@ -58,11 +80,32 @@ class OverlayView @JvmOverloads constructor(
         invalidate()
     }
 
+    fun addLogEntry(entry: String) {
+        // Prepend entry with timestamp
+        val timestamp = android.text.format.DateFormat.format("HH:mm:ss", java.util.Date())
+        val logEntry = "[$timestamp] $entry"
+        logList = logList + logEntry
+        if (logList.size > 5) {
+            logList = logList.takeLast(3)
+        }
+    }
+
+    @SuppressLint("DefaultLocale")
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
         if (width > 0 && currentFps > 0) {
             canvas.drawText(String.format("%.1f FPS", currentFps), width - 20f, 60f, fpsTextPaint)
+        }
+        val th = thermalHeadroom
+        val thermText = if (th == null) "Thermal: N/A" else String.format("Thermal: %.2f", th)
+        canvas.drawText(thermText, 20f, 60f, thermTextPaint)
+
+        if (logList.isNotEmpty()) {
+            val logStartY = height - 20f
+            for ((index, log) in logList.withIndex()) {
+                canvas.drawText(log, 20f, logStartY - index * 50f, logTextPaint)
+            }
         }
 
         if (boxes.isEmpty() || imageWidth == 0 || imageHeight == 0) return

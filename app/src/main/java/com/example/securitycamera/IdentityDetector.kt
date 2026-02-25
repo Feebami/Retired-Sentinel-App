@@ -80,7 +80,7 @@ class IdentityDetector(
      * Exposed publicly for enrollment: capture a face, call this, then addKnownFace().
      */
     fun generateEmbedding(faceBitmap: Bitmap): FloatArray? {
-        val interp = interpreter ?: return null
+        val interpreter = this@IdentityDetector.interpreter ?: return null
 
         val imageProcessor = ImageProcessor.Builder()
             .add(ResizeOp(INPUT_SIZE, INPUT_SIZE, ResizeOp.ResizeMethod.BILINEAR))
@@ -95,7 +95,7 @@ class IdentityDetector(
         val outputBuffer = TensorBuffer.createFixedSize(
             intArrayOf(1, embeddingSize), DataType.FLOAT32
         )
-        interp.run(tensorImage.buffer, outputBuffer.buffer.rewind())
+        interpreter.run(tensorImage.buffer, outputBuffer.buffer.rewind())
 
         return l2Normalize(outputBuffer.floatArray)
     }
@@ -113,11 +113,6 @@ class IdentityDetector(
 
     fun removeKnownFace(name: String) {
         knownFaces.remove(name)
-        saveVectors()
-    }
-
-    fun clearKnownFaces() {
-        knownFaces.clear()
         saveVectors()
     }
 
@@ -201,7 +196,7 @@ class IdentityDetector(
                 knownFaces[name] = vectors
             }
             Log.d(TAG, "Loaded known faces: ${knownFaces.keys.toList()}")
-        } catch (e: java.io.FileNotFoundException) {
+        } catch (_: java.io.FileNotFoundException) {
             Log.w(TAG, "No saved face vectors found — starting fresh")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load face vectors", e)

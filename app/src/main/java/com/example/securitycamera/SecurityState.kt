@@ -7,7 +7,6 @@ class SecurityState(
     private val safeIdentities: List<String>,
     incidentTimeoutSec: Long,
     gracePeriodSec: Long,
-    private val safeThreshold: Int
 ) {
     companion object {
         private const val TAG = "SecurityState"
@@ -17,6 +16,7 @@ class SecurityState(
     private val gracePeriodMs = gracePeriodSec * 1000L
     private var incidentStartTime = 0L
     private var lastSightTime = 0L
+    private val safeThreshold = 3
     private var safeIdentitySeen = false
     private var alertedThisIncident = false
 
@@ -32,6 +32,7 @@ class SecurityState(
         lastSightTime = 0L
         safeIdentitySeen = false
         identityCounts.clear()
+        alertedThisIncident = false
     }
 
     /**
@@ -46,8 +47,8 @@ class SecurityState(
             if ((now - lastSightTime) > incidentTimeoutMs) {
                 Log.i(TAG, "Room empty for ${incidentTimeoutMs / 1000}s. Ending incident.")
                 resetIncident()
+                return false
             }
-            return false
         }
 
         // 2. Update Timings & Check for Safe People
@@ -84,12 +85,10 @@ class SecurityState(
 
         // 4. Intruder Alert Logic
         // We are past the grace period. If no safe identity has reached the threshold, it's an intruder.
-        if (!safeIdentitySeen && incidentStartTime > 0L) {
-            if (!alertedThisIncident) {
-                Log.w(TAG, "!!! Intruder Alert: No safe identity confirmed within grace period !!!")
-                alertedThisIncident = true
-                return true
-            }
+        if (!safeIdentitySeen && incidentStartTime > 0L && !alertedThisIncident) {
+            Log.w(TAG, "!!! Intruder Alert: No safe identity confirmed within grace period !!!")
+            alertedThisIncident = true
+            return true
         }
         return false
     }

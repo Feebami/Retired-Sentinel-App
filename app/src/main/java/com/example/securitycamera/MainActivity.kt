@@ -21,7 +21,6 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
-import androidx.core.content.getSystemService
 import com.example.securitycamera.databinding.ActivityMainBinding
 import org.jcodec.api.android.AndroidSequenceEncoder
 import java.io.File
@@ -46,7 +45,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var faceDetector: FaceDetector
     private lateinit var identityDetector: IdentityDetector
     private lateinit var securityState: SecurityState
-    private lateinit var powerManager: android.os.PowerManager
     private lateinit var telegramSender: TelegramAlertSender
 
     private var cameraProvider: ProcessCameraProvider? = null
@@ -54,20 +52,33 @@ class MainActivity : AppCompatActivity() {
 
     @Volatile private var shuttingDown = false
     private val frameBuffer = mutableListOf<Bitmap>()
-
     private var maxFramesToKeep = 30
-    // Dynamic Throttling Configuration
-    private var lastAnalyzedTimestamp = 0L
-    private val maxFps = 5.0
-    private val minFps = 2.0
-    private var currentTargetFps = maxFps // Start at max performance
 
-    private var frameIntervalMs = (1000 / currentTargetFps).toLong()
+    private var targetFps = 3.0
+    private var actualFps = 0.0
+    private var lastAnalyzedTimestamp = 0L
+    private var frameIntervalMs = (1000 / targetFps).toLong()
     private val frameTimestamps = java.util.ArrayDeque<Long>()
 
-    private var actualFps = 0.0
-    private var lastThermalCheckTime = 0L
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var lastValidHeadroom: Float? = null
 
+    private val thermalPoll = object : Runnable {
+        override fun run() {
+            val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
+
+            val newValue: Float? =
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                    val v = pm.getThermalHeadroom(0)
+                    if (v.isNaN()) null else v
+                } else null
+
+            if (newValue != null) lastValidHeadroom = newValue
+
+            binding.overlayView.setThermalHeadroom(lastValidHeadroom)
+            mainHandler.postDelayed(this, 5000L) // 2–10s is a good range
+        }
+    }
 
     private val cameraPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -90,10 +101,8 @@ class MainActivity : AppCompatActivity() {
         securityState = SecurityState(
             safeIdentities = safeNames,
             incidentTimeoutSec = AppSettings.incidentTimeoutSec,
-            gracePeriodSec = AppSettings.gracePeriodSec,
-            safeThreshold = AppSettings.safeThresholdFrames
+            gracePeriodSec = AppSettings.gracePeriodSec
         )
-        powerManager = getSystemService(POWER_SERVICE) as android.os.PowerManager
         telegramSender = TelegramAlertSender()
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
@@ -115,7 +124,8 @@ class MainActivity : AppCompatActivity() {
         // 1. Define how we want the camera resolution to behave
         val resolutionSelector = ResolutionSelector.Builder()
             .setAspectRatioStrategy(AspectRatioStrategy(AspectRatio.RATIO_4_3, AspectRatioStrategy.FALLBACK_RULE_AUTO))
-            .setResolutionStrategy(ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY)
+            .setResolutionStrategy(ResolutionStrategy(android.util.Size(640, 480),
+                ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER))
             .build()
 
         // 2. Set up the Preview (what the user sees on screen)
@@ -147,34 +157,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         val currentTimestamp = System.currentTimeMillis()
-        if (currentTimestamp - lastThermalCheckTime > 5000) {
-            lastThermalCheckTime = currentTimestamp
-
-            // Requires API 30+ (Android 11)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                // Returns a value usually between 0.0 (cool) and 1.0 (severe throttling)
-                // We ask for the forecast 10 seconds into the future
-                val thermalHeadroom = powerManager.getThermalHeadroom(10)
-
-                if (thermalHeadroom.isNaN()) {
-                    // OS couldn't provide data, stick to a safe middle ground
-                    currentTargetFps = 3.0
-                } else if (thermalHeadroom > 0.8) {
-                    currentTargetFps -= 0.1
-                    currentTargetFps.coerceAtLeast(minFps)
-                    Log.d("ThermalThrottle", "Target FPS adjusted to: $currentTargetFps")
-                } else if (thermalHeadroom < 0.5) {
-                    currentTargetFps += 0.1
-                    currentTargetFps.coerceAtMost(maxFps)
-                    Log.d("ThermalThrottle", "Target FPS adjusted to: $currentTargetFps")
-                }
-            } else {
-                // Fallback for older devices: just use a safe, static 3 FPS
-                currentTargetFps = 3.0
-            }
-            // Recalculate the required interval between frames
-            frameIntervalMs = (1000 / currentTargetFps).toLong()
-        }
         if (currentTimestamp - lastAnalyzedTimestamp < frameIntervalMs) {
             imageProxy.close()
             return
@@ -187,7 +169,7 @@ class MainActivity : AppCompatActivity() {
         }
         actualFps = frameTimestamps.size / 5.0
 
-        val framesToKeep = (AppSettings.gracePeriodSec * actualFps).toInt().coerceAtLeast(10)
+        val framesToKeep = (AppSettings.gracePeriodSec * actualFps).toInt()
         maxFramesToKeep = framesToKeep.coerceAtLeast(10)
 
         var src: Bitmap? = null
@@ -213,19 +195,18 @@ class MainActivity : AppCompatActivity() {
             }
 
             // 2. Run detectors sequentially
-            val personBoxes = personDetector.detect(rotated)
+            val personBox = personDetector.detect(rotated)
             val allBoxes = mutableListOf<BoundingBox>()
             val identities = mutableSetOf<String>()
-            for (personBox in personBoxes) {
-                val faces = faceDetector.detect(rotated, personBox)
-                if (faces.isEmpty()) {
+            if (personBox != null) {
+                val face = faceDetector.detect(rotated, personBox)
+                if (face == null) {
                     allBoxes.add(personBox)
                     identities.add("Unknown")
                 } else {
-                    val faceBox = faces.first()
-                    val result = identityDetector.identify(rotated, faceBox)
+                    val result = identityDetector.identify(rotated, face)
                     allBoxes.add(personBox)
-                    allBoxes.add(faceBox.copy(label = result.name, confidence = result.bestScore))
+                    allBoxes.add(face.copy(label = result.name, confidence = result.bestScore))
                     identities.add(result.name)
                 }
             }
@@ -233,25 +214,15 @@ class MainActivity : AppCompatActivity() {
             val alert = securityState.update(identities)
 
             if (alert) {
-                val framesToEncode = frameBuffer.toList()
+                binding.overlayView.addLogEntry("!!! Intruder Alert !!!")
+                Log.i("MainActivity", "Intruder Alert triggered! Encoding video from ${frameBuffer.size} frames.")
+                encodeVideoFromFrames(frameBuffer.toList(), actualFps)
                 frameBuffer.clear()
-
-                runOnUiThread {
-                    Toast.makeText(this@MainActivity, "ALERT! Saving video...", Toast.LENGTH_SHORT).show()
-                }
-                Log.i("MainActivity", "Intruder Alert triggered! Encoding video from ${framesToEncode.size} frames.")
-                val videoFps = actualFps
-                videoEncoderExecutor.execute {
-                    encodeVideoFromFrames(framesToEncode, videoFps)
-                }
             }
             // 3. Draw to the screen
             if (!isFinishing && !isDestroyed) {
-                val w = rotated.width
-                val h = rotated.height
-                val fpsDisplay = actualFps
                 runOnUiThread {
-                    binding.overlayView.setBoxes(allBoxes, w, h, fpsDisplay)
+                    binding.overlayView.setOverlay(allBoxes, rotated.width, rotated.height, actualFps)
                 }
             }
 
@@ -270,11 +241,14 @@ class MainActivity : AppCompatActivity() {
 
         try {
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-            val videoFile = File(
-                getExternalFilesDir(Environment.DIRECTORY_MOVIES),
-                "Intruder_Alert_$timeStamp.mp4"
-            )
-            val encoder = AndroidSequenceEncoder.createSequenceEncoder(videoFile, fps.toInt())
+            val videoDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+            if (!videoDir.exists()) {
+                videoDir.mkdirs()
+            }
+            val videoFile = File(videoDir, "Intruder_Alert_$timeStamp.mp4")
+            binding.overlayView.addLogEntry("Encoding video...")
+            val encoderFps = fps.coerceAtLeast(1.0).toInt()
+            val encoder = AndroidSequenceEncoder.createSequenceEncoder(videoFile, encoderFps)
 
             for (frame in frames) {
                 encoder.encodeImage(frame)
@@ -283,6 +257,7 @@ class MainActivity : AppCompatActivity() {
 
             encoder.finish()
             Log.i("MainActivity", "Video saved: ${videoFile.absolutePath}")
+            binding.overlayView.addLogEntry("Video saved: ${videoFile.name}")
 
             runOnUiThread {
                 Toast.makeText(this@MainActivity, "Video saved: ${videoFile.absolutePath}", Toast.LENGTH_LONG).show()
@@ -293,6 +268,11 @@ class MainActivity : AppCompatActivity() {
             Log.e("MainActivity", "Video encoding failed", e)
             frames.forEach { it.recycle() }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        mainHandler.post(thermalPoll)
     }
 
     override fun onResume() {
@@ -306,6 +286,7 @@ class MainActivity : AppCompatActivity() {
         shuttingDown = true
         imageAnalysis?.clearAnalyzer()
         cameraProvider?.unbindAll()
+        mainHandler.removeCallbacks(thermalPoll)
     }
 
     override fun onDestroy() {

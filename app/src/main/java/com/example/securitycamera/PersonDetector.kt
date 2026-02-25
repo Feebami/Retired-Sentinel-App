@@ -18,7 +18,7 @@ import kotlin.math.roundToInt
 
 class PersonDetector(
     private val context: Context,
-    private val modelName: String = "yolo26n_float16.tflite"
+    private val modelName: String = "yolo26n_int8.tflite"
 ) {
 
     private var interpreter: Interpreter? = null
@@ -28,7 +28,6 @@ class PersonDetector(
 
     // Configuration
     var confThreshold = AppSettings.DEFAULT_CONF_THRESHOLD
-    private val iouThreshold = 0.5f
 
     init {
         setupInterpreter()
@@ -67,10 +66,7 @@ class PersonDetector(
 
         // 2. Run Inference
         val outputBuffer = TensorBuffer.createFixedSize(outputShape, DataType.FLOAT32)
-        val startTime = System.currentTimeMillis()
         interpreter!!.run(tensorImage.buffer, outputBuffer.buffer.rewind())
-        val endTime = System.currentTimeMillis()
-        Log.d("PersonDetector", "Inference time: ${endTime - startTime} ms")
 
         // 3. Post-process
         val outputArray = outputBuffer.floatArray
@@ -113,39 +109,6 @@ class PersonDetector(
         }
 
         return bestBox
-    }
-
-    private fun applyNMS(boxes: List<BoundingBox>): List<BoundingBox> {
-        val sortedBoxes = boxes.sortedByDescending { it.confidence }.toMutableList()
-        val selectedBoxes = mutableListOf<BoundingBox>()
-
-        while (sortedBoxes.isNotEmpty()) {
-            val first = sortedBoxes.removeAt(0)
-            selectedBoxes.add(first)
-
-            val iterator = sortedBoxes.iterator()
-            while (iterator.hasNext()) {
-                val next = iterator.next()
-                if (calculateIoU(first, next) >= iouThreshold) {
-                    iterator.remove()
-                }
-            }
-        }
-        return selectedBoxes
-    }
-
-    private fun calculateIoU(box1: BoundingBox, box2: BoundingBox): Float {
-        val x1 = maxOf(box1.x1, box2.x1)
-        val y1 = maxOf(box1.y1, box2.y1)
-        val x2 = minOf(box1.x2, box2.x2)
-        val y2 = minOf(box1.y2, box2.y2)
-
-        val intersectionArea = maxOf(0f, x2 - x1) * maxOf(0f, y2 - y1)
-        val box1Area = box1.w * box1.h
-        val box2Area = box2.w * box2.h
-        val unionArea = box1Area + box2Area - intersectionArea
-
-        return if (unionArea > 0) intersectionArea / unionArea else 0f
     }
 
     private fun loadModelFile(assetManager: android.content.res.AssetManager, modelPath: String): MappedByteBuffer {

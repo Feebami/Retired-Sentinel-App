@@ -1,6 +1,8 @@
 package com.example.securitycamera
 
 import android.content.Context
+import androidx.core.content.edit
+import kotlin.math.roundToInt
 
 object AppSettings {
     private const val PREFS_NAME = "security_camera_prefs"
@@ -10,7 +12,6 @@ object AppSettings {
     // New Keys for Security State
     private const val KEY_INCIDENT_TIMEOUT = "incident_timeout"
     private const val KEY_GRACE_PERIOD = "grace_period"
-    private const val KEY_SAFE_THRESHOLD = "safe_threshold"
     private const val KEY_SAFE_IDENTITIES = "safe_identities"
     private const val KEY_TELEGRAM_ENABLED = "telegram_enabled"
     private const val KEY_TELEGRAM_TOKEN = "telegram_token"
@@ -22,7 +23,6 @@ object AppSettings {
     // Defaults for Security State
     const val DEFAULT_INCIDENT_TIMEOUT = 10L // seconds
     const val DEFAULT_GRACE_PERIOD = 3L      // seconds
-    const val DEFAULT_SAFE_THRESHOLD = 5     // frames
 
     var confThreshold: Float = DEFAULT_CONF_THRESHOLD
         private set
@@ -33,8 +33,6 @@ object AppSettings {
     var incidentTimeoutSec: Long = DEFAULT_INCIDENT_TIMEOUT
         private set
     var gracePeriodSec: Long = DEFAULT_GRACE_PERIOD
-        private set
-    var safeThresholdFrames: Int = DEFAULT_SAFE_THRESHOLD
         private set
     var safeIdentities: Set<String> = emptySet()
         private set
@@ -50,15 +48,14 @@ object AppSettings {
         try {
             var conf = p.getFloat(KEY_CONF_THRESHOLD, DEFAULT_CONF_THRESHOLD)
             var recog = p.getFloat(KEY_RECOG_THRESHOLD, DEFAULT_RECOG_THRESHOLD)
-            conf = Math.round(conf * 100) / 100f
-            recog = Math.round(recog * 100) / 100f
+            conf = (conf * 100).roundToInt() / 100f
+            recog = (recog * 100).roundToInt() / 100f
             confThreshold = conf.coerceIn(0.1f, 0.9f)
             recognitionThreshold = recog.coerceIn(0.1f, 1.0f)
 
             // Load Security Settings
             incidentTimeoutSec = p.getLong(KEY_INCIDENT_TIMEOUT, DEFAULT_INCIDENT_TIMEOUT)
             gracePeriodSec = p.getLong(KEY_GRACE_PERIOD, DEFAULT_GRACE_PERIOD)
-            safeThresholdFrames = p.getInt(KEY_SAFE_THRESHOLD, DEFAULT_SAFE_THRESHOLD)
             safeIdentities = p.getStringSet(KEY_SAFE_IDENTITIES, emptySet()) ?: emptySet()
 
             // Load Telegram Settings
@@ -66,60 +63,54 @@ object AppSettings {
             telegramToken = p.getString(KEY_TELEGRAM_TOKEN, "") ?: ""
             telegramChatId = p.getString(KEY_TELEGRAM_CHAT_ID, "") ?: ""
 
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             confThreshold = DEFAULT_CONF_THRESHOLD
             recognitionThreshold = DEFAULT_RECOG_THRESHOLD
             incidentTimeoutSec = DEFAULT_INCIDENT_TIMEOUT
             gracePeriodSec = DEFAULT_GRACE_PERIOD
-            safeThresholdFrames = DEFAULT_SAFE_THRESHOLD
             safeIdentities = emptySet()
         }
     }
 
     fun saveConfThreshold(context: Context, value: Float) {
         confThreshold = value
-        prefs(context).edit().putFloat(KEY_CONF_THRESHOLD, value).apply()
+        prefs(context).edit { putFloat(KEY_CONF_THRESHOLD, value) }
     }
 
     fun saveRecognitionThreshold(context: Context, value: Float) {
         recognitionThreshold = value
-        prefs(context).edit().putFloat(KEY_RECOG_THRESHOLD, value).apply()
+        prefs(context).edit { putFloat(KEY_RECOG_THRESHOLD, value) }
     }
 
     // New Save Methods
     fun saveIncidentTimeout(context: Context, valueSec: Long) {
         incidentTimeoutSec = valueSec
-        prefs(context).edit().putLong(KEY_INCIDENT_TIMEOUT, valueSec).apply()
+        prefs(context).edit { putLong(KEY_INCIDENT_TIMEOUT, valueSec) }
     }
 
     fun saveGracePeriod(context: Context, valueSec: Long) {
         gracePeriodSec = valueSec
-        prefs(context).edit().putLong(KEY_GRACE_PERIOD, valueSec).apply()
-    }
-
-    fun saveSafeThreshold(context: Context, frames: Int) {
-        safeThresholdFrames = frames
-        prefs(context).edit().putInt(KEY_SAFE_THRESHOLD, frames).apply()
+        prefs(context).edit { putLong(KEY_GRACE_PERIOD, valueSec) }
     }
 
     fun saveSafeIdentities(context: Context, identities: Set<String>) {
         safeIdentities = identities
-        prefs(context).edit().putStringSet(KEY_SAFE_IDENTITIES, identities).apply()
+        prefs(context).edit { putStringSet(KEY_SAFE_IDENTITIES, identities) }
     }
 
     fun saveTelegramEnabled(context: Context, enabled: Boolean) {
         telegramEnabled = enabled
-        prefs(context).edit().putBoolean(KEY_TELEGRAM_ENABLED, enabled).apply()
+        prefs(context).edit { putBoolean(KEY_TELEGRAM_ENABLED, enabled) }
     }
 
     fun saveTelegramToken(context: Context, token: String) {
         telegramToken = token
-        prefs(context).edit().putString(KEY_TELEGRAM_TOKEN, token).apply()
+        prefs(context).edit { putString(KEY_TELEGRAM_TOKEN, token) }
     }
 
     fun saveTelegramChatId(context: Context, chatId: String) {
         telegramChatId = chatId
-        prefs(context).edit().putString(KEY_TELEGRAM_CHAT_ID, chatId).apply()
+        prefs(context).edit { putString(KEY_TELEGRAM_CHAT_ID, chatId) }
     }
 
     private fun prefs(context: Context) =

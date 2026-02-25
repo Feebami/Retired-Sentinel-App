@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -15,23 +16,24 @@
             android:layout_height="wrap_content"
             android:text="Detection"
             android:textAppearance="?attr/textAppearanceTitleMedium"
-            android:paddingBottom="8dp" />
+            android:paddingBottom="8dp"
+            tools:ignore="HardcodedText" />
 
         <com.google.android.material.slider.Slider
             android:id="@+id/sliderConfidence"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:value="0.3"
-            android:valueFrom="0.1"
-            android:valueTo="0.9"
-            android:stepSize="0.05" />
+            android:value="0.5"
+            android:valueFrom="0.3"
+            android:valueTo="0.9"/>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Person detection confidence threshold"
             android:textAppearance="?attr/textAppearanceBodySmall"
-            android:textColor="?attr/colorOnSurfaceVariant" />
+            android:textColor="?attr/colorOnSurfaceVariant"
+            tools:ignore="HardcodedText" />
 
         <View
             android:layout_width="match_parent"
@@ -46,7 +48,8 @@
             android:layout_height="wrap_content"
             android:text="Recognition"
             android:textAppearance="?attr/textAppearanceTitleMedium"
-            android:paddingBottom="8dp" />
+            android:paddingBottom="8dp"
+            tools:ignore="HardcodedText" />
 
         <com.google.android.material.slider.Slider
             android:id="@+id/sliderThreshold"
@@ -54,15 +57,15 @@
             android:layout_height="wrap_content"
             android:value="0.6"
             android:valueFrom="0.1"
-            android:valueTo="0.9"
-            android:stepSize="0.05" />
+            android:valueTo="0.9"/>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Identity match threshold (cosine similarity)"
             android:textAppearance="?attr/textAppearanceBodySmall"
-            android:textColor="?attr/colorOnSurfaceVariant" />
+            android:textColor="?attr/colorOnSurfaceVariant"
+            tools:ignore="HardcodedText" />
 
         <View
             android:layout_width="match_parent"
@@ -77,12 +80,14 @@
             android:layout_height="wrap_content"
             android:text="Security Rules"
             android:textAppearance="?attr/textAppearanceTitleMedium"
-            android:paddingBottom="8dp" />
+            android:paddingBottom="8dp"
+            tools:ignore="HardcodedText" />
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Safe Identities (comma separated)">
+            android:hint="Safe Identities (comma separated)"
+            tools:ignore="HardcodedText">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/editSafeIdentities"
@@ -107,7 +112,8 @@
             android:layout_marginTop="16dp"
             android:text="Incident timeout (seconds room must be empty)"
             android:textAppearance="?attr/textAppearanceBodySmall"
-            android:textColor="?attr/colorOnSurfaceVariant" />
+            android:textColor="?attr/colorOnSurfaceVariant"
+            tools:ignore="HardcodedText" />
 
         <com.google.android.material.slider.Slider
             android:id="@+id/sliderIncidentTimeout"
@@ -124,7 +130,8 @@
             android:layout_marginTop="8dp"
             android:text="Grace period (seconds before alert triggers)"
             android:textAppearance="?attr/textAppearanceBodySmall"
-            android:textColor="?attr/colorOnSurfaceVariant" />
+            android:textColor="?attr/colorOnSurfaceVariant"
+            tools:ignore="HardcodedText" />
 
         <com.google.android.material.slider.Slider
             android:id="@+id/sliderGracePeriod"
@@ -150,7 +157,8 @@
             android:textColor="?attr/colorError"
             android:textAppearance="?attr/textAppearanceBodySmall"
             android:visibility="gone"
-            android:text="Warning: Incident timeout must be longer than grace period."/>
+            android:text="Warning: Incident timeout must be longer than grace period."
+            tools:ignore="HardcodedText" />
 
         <!-- NOTIFICATIONS SETTINGS -->
         <TextView
@@ -158,13 +166,15 @@
             android:layout_height="wrap_content"
             android:text="Notifications"
             android:textAppearance="?attr/textAppearanceTitleMedium"
-            android:paddingBottom="8dp" />
+            android:paddingBottom="8dp"
+            tools:ignore="HardcodedText" />
 
         <com.google.android.material.materialswitch.MaterialSwitch
             android:id="@+id/switchTelegramAlerts"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Send Telegram alerts" />
+            android:text="Send Telegram alerts"
+            tools:ignore="HardcodedText" />
 
         <!-- Hidden by default, shown when switch is ON -->
         <LinearLayout
@@ -178,7 +188,8 @@
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Telegram Bot Token">
+                android:hint="Telegram Bot Token"
+                tools:ignore="HardcodedText">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/editTelegramToken"
@@ -192,7 +203,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Telegram Chat ID">
+                android:hint="Telegram Chat ID"
+                tools:ignore="HardcodedText">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/editTelegramChatId"

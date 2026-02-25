@@ -1,5 +1,6 @@
 package com.example.securitycamera
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -8,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import com.example.securitycamera.databinding.FragmentSettingsBinding
+import kotlin.math.roundToInt
 
 class SettingsFragment : Fragment() {
 
@@ -28,7 +30,7 @@ class SettingsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         fun snapToStep(value: Float, step: Float): Float {
-            return Math.round(value / step) * step
+            return (value / step).roundToInt() * step
         }
 
         fun validateTimings() {
@@ -56,7 +58,7 @@ class SettingsFragment : Fragment() {
             binding.layoutTelegramConfig.visibility = if (AppSettings.telegramEnabled) View.VISIBLE else View.GONE
             binding.editTelegramToken.setText(AppSettings.telegramToken)
             binding.editTelegramChatId.setText(AppSettings.telegramChatId)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Fallback
             binding.sliderConfidence.value = AppSettings.DEFAULT_CONF_THRESHOLD
             binding.sliderThreshold.value = AppSettings.DEFAULT_RECOG_THRESHOLD
@@ -101,6 +103,7 @@ class SettingsFragment : Fragment() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
+            @SuppressLint("SetTextI18n")
             override fun afterTextChanged(s: Editable?) {
                 val input = s?.toString() ?: ""
 

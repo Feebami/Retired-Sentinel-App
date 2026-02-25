@@ -36,10 +36,20 @@ class UploadImagesFragment : Fragment() {
     private val identityDetector get() =
         (requireActivity() as SetupActivity).identityDetector
 
-    private val imagePicker =
-        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-            uri?.let { showNameDialog(it) }
+    private var targetNameForAdd: String? = null
+
+    private val multiImagePicker = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            val targetName = targetNameForAdd
+            if (targetName != null) {
+                // Appending photos to an EXISTING person
+                enrollPersons(targetName, uris)
+            } else {
+                // Creating a NEW person
+                showNameDialog(uris)
+            }
         }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -56,12 +66,17 @@ class UploadImagesFragment : Fragment() {
                 identityDetector.removeKnownFace(name)
                 refreshList()
                 Toast.makeText(requireContext(), "Removed '$name'", Toast.LENGTH_SHORT).show()
+            },
+            onAdd = { name ->
+                targetNameForAdd = name
+                multiImagePicker.launch("image/*")
             }
         )
         binding.recyclerView.adapter = adapter
 
         binding.fabAdd.setOnClickListener {
-            imagePicker.launch("image/*")
+            targetNameForAdd = null
+            multiImagePicker.launch("image/*")
         }
 
         refreshList()
@@ -76,7 +91,7 @@ class UploadImagesFragment : Fragment() {
         binding.recyclerView.isVisible = persons.isNotEmpty()
     }
 
-    private fun showNameDialog(uri: Uri) {
+    private fun showNameDialog(uris: List<Uri>) {
         val dp16 = (16 * resources.displayMetrics.density).toInt()
         val editText = EditText(requireContext()).apply {
             hint = "Person's name"
@@ -92,50 +107,59 @@ class UploadImagesFragment : Fragment() {
             .setView(container)
             .setPositiveButton("Enroll") { _, _ ->
                 val name = editText.text.toString().trim()
-                if (name.isNotEmpty()) enrollPerson(name, uri)
+                if (name.isNotEmpty()) enrollPersons(name, uris)
                 else Toast.makeText(requireContext(), "Name cannot be empty", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
-    private fun enrollPerson(name: String, uri: Uri) {
+    private fun enrollPersons(name: String, uris: List<Uri>) {
         binding.progressBar.isVisible = true
         binding.fabAdd.isEnabled = false
 
         lifecycleScope.launch {
-            val error = withContext(Dispatchers.IO) {
-                try {
-                    val fullBitmap = loadBitmap(uri)
-                        ?: return@withContext "Failed to load image"
+            var successCount = 0
+            var failCount = 0
 
-                    val faceBitmap = detectAndCropFace(fullBitmap)
-                    fullBitmap.recycle()
+            withContext(Dispatchers.IO) {
+                for (uri in uris) {
+                    try {
+                        val fullBitmap = loadBitmap(uri)
+                        if (fullBitmap != null) {
+                            val faceBitmap = detectAndCropFace(fullBitmap)
+                            fullBitmap.recycle()
 
-                    if (faceBitmap == null)
-                        return@withContext "No face detected. Please use a clear portrait photo."
+                            if (faceBitmap != null) {
+                                val embedding = identityDetector.generateEmbedding(faceBitmap)
+                                faceBitmap.recycle()
 
-                    val embedding = identityDetector.generateEmbedding(faceBitmap)
-                    faceBitmap.recycle()
-
-                    if (embedding == null)
-                        return@withContext "Failed to generate face embedding"
-
-                    identityDetector.addKnownFace(name, embedding)
-                    null // null = success
-                } catch (e: Exception) {
-                    e.message ?: "Unknown error during enrollment"
+                                if (embedding != null) {
+                                    identityDetector.addKnownFace(name, embedding)
+                                    successCount++
+                                } else {
+                                    failCount++
+                                }
+                            } else {
+                                failCount++
+                            }
+                        } else {
+                            failCount++
+                        }
+                    } catch (_: Exception) {
+                        failCount++
+                    }
                 }
             }
 
             binding.progressBar.isVisible = false
             binding.fabAdd.isEnabled = true
+            refreshList()
 
-            if (error == null) {
-                refreshList()
-                Toast.makeText(requireContext(), "Enrolled '$name'", Toast.LENGTH_SHORT).show()
+            if (failCount == 0) {
+                Toast.makeText(requireContext(), "Enrolled $successCount photo(s) for '$name'", Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(requireContext(), error, Toast.LENGTH_LONG).show()
+                Toast.makeText(requireContext(), "Success: $successCount, Failed: $failCount. Make sure faces are clear.", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -143,14 +167,15 @@ class UploadImagesFragment : Fragment() {
     /** Runs ML Kit face detection on the full image and returns a cropped face bitmap. */
     private fun detectAndCropFace(bitmap: Bitmap): Bitmap? {
         val options = FaceDetectorOptions.Builder()
-            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
             .build()
         val detector = FaceDetection.getClient(options)
         return detector.use { detector ->
             val faces = Tasks.await(detector.process(InputImage.fromBitmap(bitmap, 0)))
             if (faces.isEmpty()) return null
 
-            val rect = faces[0].boundingBox
+            val largestFace = faces.maxByOrNull { it.boundingBox.width() * it.boundingBox.height() } ?: faces[0]
+            val rect = largestFace.boundingBox
             val margin = (minOf(rect.width(), rect.height()) * 0.2f).toInt()
             val x1 = (rect.left  - margin).coerceAtLeast(0)
             val y1 = (rect.top   - margin).coerceAtLeast(0)
