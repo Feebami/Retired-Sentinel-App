@@ -18,7 +18,7 @@ import kotlin.math.roundToInt
 
 class PersonDetector(
     private val context: Context,
-    private val modelName: String = "yolo26n_float32.tflite"
+    private val modelName: String = "yolo26n_float16.tflite"
 ) {
 
     private var interpreter: Interpreter? = null
@@ -51,8 +51,8 @@ class PersonDetector(
         Log.d("PersonDetector", "Input: ${inputShape.contentToString()}, Output: ${outputShape.contentToString()}")
     }
 
-    fun detect(bitmap: Bitmap): List<BoundingBox> {
-        if (interpreter == null) return emptyList()
+    fun detect(bitmap: Bitmap): BoundingBox? {
+        if (interpreter == null) return null
 
         // 1. Preprocess Image
         val imageProcessor = ImageProcessor.Builder()
@@ -67,18 +67,22 @@ class PersonDetector(
 
         // 2. Run Inference
         val outputBuffer = TensorBuffer.createFixedSize(outputShape, DataType.FLOAT32)
+        val startTime = System.currentTimeMillis()
         interpreter!!.run(tensorImage.buffer, outputBuffer.buffer.rewind())
+        val endTime = System.currentTimeMillis()
+        Log.d("PersonDetector", "Inference time: ${endTime - startTime} ms")
 
         // 3. Post-process
         val outputArray = outputBuffer.floatArray
         val numDetections = outputShape[1] // 300
         val numValues = outputShape[2]      // 6
 
-        val boxes = mutableListOf<BoundingBox>()
-
         // CORRECTION: Scale to ORIGINAL bitmap size, not model size
         val originalWidth = bitmap.width.toFloat()
         val originalHeight = bitmap.height.toFloat()
+
+        var bestBox: BoundingBox? = null
+        var highestConf = confThreshold
 
         for (i in 0 until numDetections) {
             val baseIndex = i * numValues
@@ -91,8 +95,7 @@ class PersonDetector(
             val confidence = outputArray[baseIndex + 4]
             val classId = outputArray[baseIndex + 5].roundToInt()
 
-            if (classId != 0) continue
-            if (confidence <= confThreshold) continue
+            if (classId != 0 || confidence < highestConf) continue
 
             // Scale normalized coordinates (0..1) to full image size (e.g. 640x480)
             val x1 = x1Norm * originalWidth
@@ -105,10 +108,11 @@ class PersonDetector(
             val w = x2 - x1
             val h = y2 - y1
 
-            boxes.add(BoundingBox(x1, y1, x2, y2, cx, cy, w, h, confidence, "Person"))
+            highestConf = confidence
+            bestBox = BoundingBox(x1, y1, x2, y2, cx, cy, w, h, confidence, "Person")
         }
 
-        return applyNMS(boxes)
+        return bestBox
     }
 
     private fun applyNMS(boxes: List<BoundingBox>): List<BoundingBox> {
