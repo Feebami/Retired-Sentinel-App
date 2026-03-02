@@ -55,7 +55,6 @@ class IdentityDetector(
             val options = Interpreter.Options().apply { setNumThreads(4) }
             interpreter = Interpreter(loadModelFile(modelName), options)
             embeddingSize = interpreter!!.getOutputTensor(0).shape()[1]
-            Log.d(TAG, "Loaded '$modelName': input=${interpreter!!.getInputTensor(0).shape().contentToString()}, embedding_dims=$embeddingSize")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load FaceNet model '$modelName'. Did you add it to assets?", e)
         }
@@ -108,7 +107,6 @@ class IdentityDetector(
     fun addKnownFace(name: String, embedding: FloatArray) {
         knownFaces.getOrPut(name) { mutableListOf() }.add(embedding)
         saveVectors()
-        Log.d(TAG, "Enrolled '$name': ${knownFaces[name]?.size} vector(s) total")
     }
 
     fun removeKnownFace(name: String) {
@@ -195,7 +193,6 @@ class IdentityDetector(
                 }
                 knownFaces[name] = vectors
             }
-            Log.d(TAG, "Loaded known faces: ${knownFaces.keys.toList()}")
         } catch (_: java.io.FileNotFoundException) {
             Log.w(TAG, "No saved face vectors found — starting fresh")
         } catch (e: Exception) {

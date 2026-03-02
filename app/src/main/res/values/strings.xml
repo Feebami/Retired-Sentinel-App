@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Security Camera</string>
+
+    <string-array name="resolution_options">
+        <item>480p</item>
+        <item>720p</item>
+        <item>1080p</item>
+    </string-array>
 </resources>

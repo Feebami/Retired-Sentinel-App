@@ -1,7 +1,10 @@
 package com.example.securitycamera
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.core.content.edit
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import kotlin.math.roundToInt
 
 object AppSettings {
@@ -16,6 +19,8 @@ object AppSettings {
     private const val KEY_TELEGRAM_ENABLED = "telegram_enabled"
     private const val KEY_TELEGRAM_TOKEN = "telegram_token"
     private const val KEY_TELEGRAM_CHAT_ID = "telegram_chat_id"
+    private const val KEY_TARGET_FPS = "target_fps"
+    private const val KEY_RESOLUTION = "resolution"
 
     const val DEFAULT_CONF_THRESHOLD = 0.3f
     const val DEFAULT_RECOG_THRESHOLD = 0.6f
@@ -23,6 +28,10 @@ object AppSettings {
     // Defaults for Security State
     const val DEFAULT_INCIDENT_TIMEOUT = 10L // seconds
     const val DEFAULT_GRACE_PERIOD = 3L      // seconds
+
+    // Defaults for Camera
+    const val DEFAULT_TARGET_FPS = 3
+    const val DEFAULT_RESOLUTION = "480p"
 
     var confThreshold: Float = DEFAULT_CONF_THRESHOLD
         private set
@@ -38,9 +47,9 @@ object AppSettings {
         private set
     var telegramEnabled: Boolean = false
         private set
-    var telegramToken: String = ""
+    var targetFps: Int = DEFAULT_TARGET_FPS
         private set
-    var telegramChatId: String = ""
+    var resolution: String = DEFAULT_RESOLUTION
         private set
 
     fun load(context: Context) {
@@ -60,8 +69,10 @@ object AppSettings {
 
             // Load Telegram Settings
             telegramEnabled = p.getBoolean(KEY_TELEGRAM_ENABLED, false)
-            telegramToken = p.getString(KEY_TELEGRAM_TOKEN, "") ?: ""
-            telegramChatId = p.getString(KEY_TELEGRAM_CHAT_ID, "") ?: ""
+
+            // Load Camera Settings
+            targetFps = p.getInt(KEY_TARGET_FPS, DEFAULT_TARGET_FPS)
+            resolution = p.getString(KEY_RESOLUTION, DEFAULT_RESOLUTION) ?: DEFAULT_RESOLUTION
 
         } catch (_: Exception) {
             confThreshold = DEFAULT_CONF_THRESHOLD
@@ -69,6 +80,8 @@ object AppSettings {
             incidentTimeoutSec = DEFAULT_INCIDENT_TIMEOUT
             gracePeriodSec = DEFAULT_GRACE_PERIOD
             safeIdentities = emptySet()
+            targetFps = DEFAULT_TARGET_FPS
+            resolution = DEFAULT_RESOLUTION
         }
     }
 
@@ -104,15 +117,42 @@ object AppSettings {
     }
 
     fun saveTelegramToken(context: Context, token: String) {
-        telegramToken = token
         prefs(context).edit { putString(KEY_TELEGRAM_TOKEN, token) }
     }
 
     fun saveTelegramChatId(context: Context, chatId: String) {
-        telegramChatId = chatId
         prefs(context).edit { putString(KEY_TELEGRAM_CHAT_ID, chatId) }
     }
 
-    private fun prefs(context: Context) =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    fun saveTargetFps(context: Context, fps: Int) {
+        targetFps = fps
+        prefs(context).edit { putInt(KEY_TARGET_FPS, fps) }
+    }
+
+    fun saveResolution(context: Context, res: String) {
+        resolution = res
+        prefs(context).edit { putString(KEY_RESOLUTION, res) }
+    }
+
+    fun getTelegramToken(context: Context): String {
+        return prefs(context).getString(KEY_TELEGRAM_TOKEN, "") ?: ""
+    }
+
+    fun getTelegramChatId(context: Context): String {
+        return prefs(context).getString(KEY_TELEGRAM_CHAT_ID, "") ?: ""
+    }
+
+    private fun prefs(context: Context): SharedPreferences {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+
+        return EncryptedSharedPreferences.create(
+            context,
+            PREFS_NAME,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
 }

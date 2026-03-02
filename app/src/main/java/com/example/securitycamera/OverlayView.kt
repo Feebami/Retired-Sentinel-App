@@ -85,8 +85,8 @@ class OverlayView @JvmOverloads constructor(
         val timestamp = android.text.format.DateFormat.format("HH:mm:ss", java.util.Date())
         val logEntry = "[$timestamp] $entry"
         logList = logList + logEntry
-        if (logList.size > 5) {
-            logList = logList.takeLast(3)
+        if (logList.size > 10) {
+            logList = logList.takeLast(10)
         }
     }
 
@@ -103,7 +103,7 @@ class OverlayView @JvmOverloads constructor(
 
         if (logList.isNotEmpty()) {
             val logStartY = height - 20f
-            for ((index, log) in logList.withIndex()) {
+            for ((index, log) in logList.reversed().withIndex()) {
                 canvas.drawText(log, 20f, logStartY - index * 50f, logTextPaint)
             }
         }

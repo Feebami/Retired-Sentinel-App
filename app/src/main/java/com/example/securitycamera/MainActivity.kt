@@ -10,7 +10,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -54,7 +53,7 @@ class MainActivity : AppCompatActivity() {
     private val frameBuffer = mutableListOf<Bitmap>()
     private var maxFramesToKeep = 30
 
-    private var targetFps = 3.0
+    private var targetFps = AppSettings.targetFps.toDouble()
     private var actualFps = 0.0
     private var lastAnalyzedTimestamp = 0L
     private var frameIntervalMs = (1000 / targetFps).toLong()
@@ -121,11 +120,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun bindCameraUseCases(provider: ProcessCameraProvider) {
-        // 1. Define how we want the camera resolution to behave
+        // 1. Determine target resolution from settings
+        val targetSize = when (AppSettings.resolution) {
+            "1080p" -> android.util.Size(1440, 1080)
+            "720p"  -> android.util.Size(960, 720)
+            else    -> android.util.Size(640, 480)
+        }
+
         val resolutionSelector = ResolutionSelector.Builder()
-            .setAspectRatioStrategy(AspectRatioStrategy(AspectRatio.RATIO_4_3, AspectRatioStrategy.FALLBACK_RULE_AUTO))
-            .setResolutionStrategy(ResolutionStrategy(android.util.Size(640, 480),
-                ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER))
+            .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+            .setResolutionStrategy(ResolutionStrategy(targetSize,
+                ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER))
             .build()
 
         // 2. Set up the Preview (what the user sees on screen)
@@ -169,7 +174,7 @@ class MainActivity : AppCompatActivity() {
         }
         actualFps = frameTimestamps.size / 5.0
 
-        val framesToKeep = (AppSettings.gracePeriodSec * actualFps).toInt()
+        val framesToKeep = (AppSettings.gracePeriodSec * targetFps).toInt()
         maxFramesToKeep = framesToKeep.coerceAtLeast(10)
 
         var src: Bitmap? = null
@@ -194,19 +199,19 @@ class MainActivity : AppCompatActivity() {
                 toRecycle.recycle()
             }
 
-            // 2. Run detectors sequentially
-            val personBox = personDetector.detect(rotated)
+            // 2. Run detectors for every person in the frame
+            val personBoxes = personDetector.detect(rotated)
             val allBoxes = mutableListOf<BoundingBox>()
             val identities = mutableSetOf<String>()
-            if (personBox != null) {
-                val face = faceDetector.detect(rotated, personBox)
-                if (face == null) {
+            for (personBox in personBoxes) {
+                val faceBox = faceDetector.detect(rotated, personBox)
+                if (faceBox == null) {
                     allBoxes.add(personBox)
                     identities.add("Unknown")
                 } else {
-                    val result = identityDetector.identify(rotated, face)
+                    val result = identityDetector.identify(rotated, faceBox)
                     allBoxes.add(personBox)
-                    allBoxes.add(face.copy(label = result.name, confidence = result.bestScore))
+                    allBoxes.add(faceBox.copy(label = result.name, confidence = result.bestScore))
                     identities.add(result.name)
                 }
             }
@@ -246,7 +251,6 @@ class MainActivity : AppCompatActivity() {
                 videoDir.mkdirs()
             }
             val videoFile = File(videoDir, "Intruder_Alert_$timeStamp.mp4")
-            binding.overlayView.addLogEntry("Encoding video...")
             val encoderFps = fps.coerceAtLeast(1.0).toInt()
             val encoder = AndroidSequenceEncoder.createSequenceEncoder(videoFile, encoderFps)
 
@@ -263,7 +267,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this@MainActivity, "Video saved: ${videoFile.absolutePath}", Toast.LENGTH_LONG).show()
             }
 
-            telegramSender.sendVideoAlert(videoFile)
+            telegramSender.sendVideoAlert(this,videoFile)
         } catch (e: Exception) {
             Log.e("MainActivity", "Video encoding failed", e)
             frames.forEach { it.recycle() }
@@ -279,6 +283,8 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         personDetector.confThreshold = AppSettings.confThreshold
         identityDetector.recognitionThreshold = AppSettings.recognitionThreshold
+        targetFps = AppSettings.targetFps.toDouble()
+        frameIntervalMs = (1000 / targetFps).toLong()
     }
 
     override fun onStop() {

@@ -7,6 +7,7 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import androidx.fragment.app.Fragment
 import com.example.securitycamera.databinding.FragmentSettingsBinding
 import kotlin.math.roundToInt
@@ -54,10 +55,17 @@ class SettingsFragment : Fragment() {
             // Populate EditText with comma-separated list
             binding.editSafeIdentities.setText(AppSettings.safeIdentities.joinToString(", "))
 
+            binding.sliderTargetFps.value = AppSettings.targetFps.toFloat()
+
+            val resolutionOptions = resources.getStringArray(R.array.resolution_options)
+            val resAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, resolutionOptions)
+            binding.dropdownResolution.setAdapter(resAdapter)
+            binding.dropdownResolution.setText(AppSettings.resolution, false)
+
             binding.switchTelegramAlerts.isChecked = AppSettings.telegramEnabled
             binding.layoutTelegramConfig.visibility = if (AppSettings.telegramEnabled) View.VISIBLE else View.GONE
-            binding.editTelegramToken.setText(AppSettings.telegramToken)
-            binding.editTelegramChatId.setText(AppSettings.telegramChatId)
+            binding.editTelegramToken.setText(AppSettings.getTelegramToken(requireContext()))
+            binding.editTelegramChatId.setText(AppSettings.getTelegramChatId(requireContext()))
         } catch (_: Exception) {
             // Fallback
             binding.sliderConfidence.value = AppSettings.DEFAULT_CONF_THRESHOLD
@@ -66,6 +74,13 @@ class SettingsFragment : Fragment() {
             binding.sliderGracePeriod.value = AppSettings.DEFAULT_GRACE_PERIOD.toFloat()
 
             binding.editSafeIdentities.setText("")
+
+            binding.sliderTargetFps.value = AppSettings.DEFAULT_TARGET_FPS.toFloat()
+
+            val resolutionOptions = resources.getStringArray(R.array.resolution_options)
+            val resAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, resolutionOptions)
+            binding.dropdownResolution.setAdapter(resAdapter)
+            binding.dropdownResolution.setText(AppSettings.DEFAULT_RESOLUTION, false)
 
             binding.switchTelegramAlerts.isChecked = false
             binding.layoutTelegramConfig.visibility = View.GONE
@@ -96,6 +111,16 @@ class SettingsFragment : Fragment() {
                 AppSettings.saveGracePeriod(requireContext(), value.toLong())
                 validateTimings()
             }
+        }
+
+        // Camera settings listeners
+        binding.sliderTargetFps.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) AppSettings.saveTargetFps(requireContext(), value.toInt())
+        }
+
+        binding.dropdownResolution.setOnItemClickListener { parent, _, position, _ ->
+            val selected = parent.getItemAtPosition(position) as String
+            AppSettings.saveResolution(requireContext(), selected)
         }
 
         // 3. Setup Safe Identities validation and saving

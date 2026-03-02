@@ -2,7 +2,6 @@ package com.example.securitycamera
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.util.Log
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.support.common.ops.CastOp
@@ -18,7 +17,7 @@ import kotlin.math.roundToInt
 
 class PersonDetector(
     private val context: Context,
-    private val modelName: String = "yolo26n_int8.tflite"
+    private val modelName: String = "yolo26n_float32.tflite"
 ) {
 
     private var interpreter: Interpreter? = null
@@ -46,12 +45,10 @@ class PersonDetector(
 
         val outputTensor = interpreter!!.getOutputTensor(0)
         outputShape = outputTensor.shape() // [1, 300, 6]
-
-        Log.d("PersonDetector", "Input: ${inputShape.contentToString()}, Output: ${outputShape.contentToString()}")
     }
 
-    fun detect(bitmap: Bitmap): BoundingBox? {
-        if (interpreter == null) return null
+    fun detect(bitmap: Bitmap): List<BoundingBox> {
+        if (interpreter == null) return emptyList()
 
         // 1. Preprocess Image
         val imageProcessor = ImageProcessor.Builder()
@@ -77,8 +74,7 @@ class PersonDetector(
         val originalWidth = bitmap.width.toFloat()
         val originalHeight = bitmap.height.toFloat()
 
-        var bestBox: BoundingBox? = null
-        var highestConf = confThreshold
+        val results = mutableListOf<BoundingBox>()
 
         for (i in 0 until numDetections) {
             val baseIndex = i * numValues
@@ -91,7 +87,7 @@ class PersonDetector(
             val confidence = outputArray[baseIndex + 4]
             val classId = outputArray[baseIndex + 5].roundToInt()
 
-            if (classId != 0 || confidence < highestConf) continue
+            if (classId != 0 || confidence < confThreshold) continue
 
             // Scale normalized coordinates (0..1) to full image size (e.g. 640x480)
             val x1 = x1Norm * originalWidth
@@ -104,11 +100,10 @@ class PersonDetector(
             val w = x2 - x1
             val h = y2 - y1
 
-            highestConf = confidence
-            bestBox = BoundingBox(x1, y1, x2, y2, cx, cy, w, h, confidence, "Person")
+            results.add(BoundingBox(x1, y1, x2, y2, cx, cy, w, h, confidence, "Person"))
         }
 
-        return bestBox
+        return results
     }
 
     private fun loadModelFile(assetManager: android.content.res.AssetManager, modelPath: String): MappedByteBuffer {
