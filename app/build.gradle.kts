@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.securitycamera"
+    namespace = "com.feebami.retiredsentinel"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.securitycamera"
+        applicationId = "com.feebami.retiredsentinel"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

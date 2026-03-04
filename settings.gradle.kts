@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Security Camera"
+rootProject.name = "Retired Sentinel App"
 include(":app")

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Security Camera</string>
+    <string name="app_name">Retired Sentinel</string>
 
     <string-array name="resolution_options">
         <item>480p</item>
