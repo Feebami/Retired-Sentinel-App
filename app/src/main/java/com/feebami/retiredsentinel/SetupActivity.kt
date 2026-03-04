@@ -1,9 +1,9 @@
-package com.example.securitycamera
+package com.feebami.retiredsentinel
 
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import com.example.securitycamera.databinding.ActivitySetupBinding
+import com.feebami.retiredsentinel.databinding.ActivitySetupBinding
 import com.google.android.material.tabs.TabLayoutMediator
 
 class SetupActivity : AppCompatActivity() {

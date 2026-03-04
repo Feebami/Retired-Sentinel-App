@@ -1,4 +1,4 @@
-package com.example.securitycamera
+package com.feebami.retiredsentinel
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -20,7 +20,7 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
-import com.example.securitycamera.databinding.ActivityMainBinding
+import com.feebami.retiredsentinel.databinding.ActivityMainBinding
 import org.jcodec.api.android.AndroidSequenceEncoder
 import java.io.File
 import java.text.SimpleDateFormat

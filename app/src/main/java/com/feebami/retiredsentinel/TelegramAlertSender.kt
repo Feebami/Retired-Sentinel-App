@@ -1,4 +1,4 @@
-package com.example.securitycamera
+package com.feebami.retiredsentinel
 
 import android.content.Context
 import android.util.Log

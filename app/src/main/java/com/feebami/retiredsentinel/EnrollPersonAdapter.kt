@@ -1,10 +1,10 @@
-package com.example.securitycamera
+package com.feebami.retiredsentinel
 
 import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.example.securitycamera.databinding.ItemEnrolledPersonBinding
+import com.feebami.retiredsentinel.databinding.ItemEnrolledPersonBinding
 
 data class EnrolledPerson(val name: String, val vectorCount: Int)
 

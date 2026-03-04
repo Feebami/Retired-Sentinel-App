@@ -1,4 +1,4 @@
-package com.example.securitycamera
+package com.feebami.retiredsentinel
 
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity

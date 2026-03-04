@@ -1,4 +1,4 @@
-package com.example.securitycamera
+package com.feebami.retiredsentinel
 
 import android.graphics.Bitmap
 import com.google.android.gms.tasks.Tasks

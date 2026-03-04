@@ -1,4 +1,4 @@
-package com.example.securitycamera
+package com.feebami.retiredsentinel
 
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
@@ -18,7 +18,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import com.example.securitycamera.databinding.FragmentUploadImagesBinding
+import com.feebami.retiredsentinel.databinding.FragmentUploadImagesBinding
 import com.google.android.gms.tasks.Tasks
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
