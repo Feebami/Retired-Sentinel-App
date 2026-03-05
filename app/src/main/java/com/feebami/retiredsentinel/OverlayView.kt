@@ -65,9 +65,9 @@ class OverlayView @JvmOverloads constructor(
     private var imageHeight = 0
     private var logList: List<String> = emptyList()
     private var currentFps = 0.0
-    private var thermalHeadroom: Float? = null
+    private var thermalHeadroom: Int? = null
 
-    fun setThermalHeadroom(value: Float?) {
+    fun setThermalHeadroom(value: Int?) {
         thermalHeadroom = value
         invalidate()
     }
@@ -98,7 +98,7 @@ class OverlayView @JvmOverloads constructor(
             canvas.drawText(String.format("%.1f FPS", currentFps), width - 20f, 60f, fpsTextPaint)
         }
         val th = thermalHeadroom
-        val thermText = if (th == null) "Thermal: N/A" else String.format("Thermal: %.2f", th)
+        val thermText = if (th == null) "Thermal: N/A" else String.format("Thermal: %d", th)
         canvas.drawText(thermText, 20f, 60f, thermTextPaint)
 
         if (logList.isNotEmpty()) {

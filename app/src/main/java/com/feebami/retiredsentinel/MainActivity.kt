@@ -51,7 +51,8 @@ class MainActivity : AppCompatActivity() {
 
     @Volatile private var shuttingDown = false
     private val frameBuffer = mutableListOf<Bitmap>()
-    private var maxFramesToKeep = 30
+    private var maxFramesToKeep = AppSettings.gracePeriodSec + 1
+    private var lastBufferTimestamp = 0L
 
     private var targetFps = AppSettings.targetFps.toDouble()
     private var actualFps = 0.0
@@ -60,7 +61,7 @@ class MainActivity : AppCompatActivity() {
     private val frameTimestamps = java.util.ArrayDeque<Long>()
 
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
-    private var lastValidHeadroom: Float? = null
+    private var lastValidHeadroom: Int? = null
 
     private val thermalPoll = object : Runnable {
         override fun run() {
@@ -72,7 +73,7 @@ class MainActivity : AppCompatActivity() {
                     if (v.isNaN()) null else v
                 } else null
 
-            if (newValue != null) lastValidHeadroom = newValue
+            if (newValue != null) lastValidHeadroom = (newValue * 100).toInt()
 
             binding.overlayView.setThermalHeadroom(lastValidHeadroom)
             mainHandler.postDelayed(this, 5000L) // 2–10s is a good range
@@ -161,7 +162,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val currentTimestamp = System.currentTimeMillis()
+        var currentTimestamp = System.currentTimeMillis()
         if (currentTimestamp - lastAnalyzedTimestamp < frameIntervalMs) {
             imageProxy.close()
             return
@@ -173,9 +174,6 @@ class MainActivity : AppCompatActivity() {
             frameTimestamps.removeFirst()
         }
         actualFps = frameTimestamps.size / 5.0
-
-        val framesToKeep = (AppSettings.gracePeriodSec * targetFps).toInt()
-        maxFramesToKeep = framesToKeep.coerceAtLeast(10)
 
         var src: Bitmap? = null
         var rotated: Bitmap? = null
@@ -193,7 +191,11 @@ class MainActivity : AppCompatActivity() {
             }
 
             val bufferCopy = rotated.copy(Bitmap.Config.ARGB_8888, false)
-            frameBuffer.add(bufferCopy)
+            currentTimestamp = System.currentTimeMillis()
+            if (currentTimestamp - lastBufferTimestamp > 1000) {
+                frameBuffer.add(bufferCopy)
+                lastBufferTimestamp = currentTimestamp
+            }
             while (frameBuffer.size > maxFramesToKeep) {
                 val toRecycle = frameBuffer.removeAt(0)
                 toRecycle.recycle()
